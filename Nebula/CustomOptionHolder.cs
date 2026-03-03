@@ -365,8 +365,7 @@ public class CustomOptionHolder
 
         gameModeNormal = CustomOption.Create(Color.white, "option.gameMode", gamemodesNormal, gamemodesNormal[0], null, true, false, "", CustomOptionTab.Settings).SetGameMode(CustomGameMode.ActuallyAll).SetIdentifier("option.gameModeNormal");
         gameModeHnS = CustomOption.Create(Color.white, "option.gameMode", gamemodesHnS, gamemodesHnS[0], null, true, false, "", CustomOptionTab.Settings).SetGameMode(CustomGameMode.All).SetIdentifier("option.gameModeHnS");
-
-
+        
         roleCountOption = CustomOption.Create(Color.white, "option.roleCount", new string[] { "option.empty" }, "option.empty", null, true, false, "", CustomOptionTab.Settings).SetGameMode(CustomGameMode.All).HiddenOnDisplay(true);
         CustomOption.RegisterTopOption(roleCountOption);
         crewmateRolesCountMin = CustomOption.Create(new Color(204f / 255f, 204f / 255f, 0, 1f), "option.minimumCrewmateRoles", 0f, 0f, 127f, 1f, roleCountOption, true, false, "", CustomOptionTab.Settings).HiddenOnDisplay(true);

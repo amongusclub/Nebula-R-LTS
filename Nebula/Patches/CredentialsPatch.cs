@@ -25,21 +25,16 @@ public static class CredentialsPatch
     {
         static void Postfix(PingTracker __instance)
         {
-            __instance.text.alignment = TMPro.TextAlignmentOptions.TopRight;
+            __instance.text.alignment = AmongUsClient.Instance.GameState == InnerNet.InnerNetClient.GameStates.Started ? TextAlignmentOptions.Top : TextAlignmentOptions.TopLeft;
+            var position = __instance.GetComponent<AspectPosition>(); 
+            position.Alignment = AmongUsClient.Instance.GameState == InnerNet.InnerNetClient.GameStates.Started ? AspectPosition.EdgeAlignments.Top : AspectPosition.EdgeAlignments.LeftTop;
             __instance.text.text = $"<size=130%><color=#9579ce>Nebula</color></size> v{ NebulaPlugin.PluginVisualVersion }\n由<color=#FFFF00>方块の聚会</color>开发\n<size=80%>{ __instance.text.text }</size>";
-            if (AmongUsClient.Instance.GameState != InnerNet.InnerNetClient.GameStates.Started)
-            {
-                __instance.gameObject.GetComponent<AspectPosition>().DistanceFromEdge = new Vector3(1.2f, 0.8f, 0f);
+            if (AmongUsClient.Instance.GameState == InnerNet.InnerNetClient.GameStates.Started) {
+                position.DistanceFromEdge = new Vector3(1.5f, 0.11f, 0);
+            } else { 
+                position.DistanceFromEdge = new Vector3(0.5f, 0.11f);
             }
-            else if (PlayerControl.LocalPlayer != null && PlayerControl.LocalPlayer.Data.IsDead)
-            {
-                __instance.gameObject.GetComponent<AspectPosition>().DistanceFromEdge = new Vector3(2.0f, 0.1f, 0f);
-            }
-            else
-            {
-                __instance.gameObject.GetComponent<AspectPosition>().DistanceFromEdge = new Vector3(1.2f, 0.1f, 0f);
-            }
-            __instance.gameObject.GetComponent<AspectPosition>().AdjustPosition();
+            position.AdjustPosition();
         }
     }
 

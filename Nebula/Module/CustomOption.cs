@@ -702,18 +702,18 @@ public static class GameSettingMenuInitializePatch
         background.transform.SetParent(__instance.transform);
         background.transform.localPosition = new(-0.8f + (id * 0.8f), 2.48f, 0.5f);
         background.transform.localScale = UnityEngine.Vector3.one;
+        background.layer = __instance.gameObject.layer;
         var bgRenderer = background.AddComponent<SpriteRenderer>();
         bgRenderer.sprite = backSprite.GetSprite();
-        bgRenderer.sortingOrder = 200;
         background.transform.localScale = new(0.5635f, 0.5635f, 1f);
 
         var iconObj = new UnityEngine.GameObject(tabName);
         iconObj.transform.SetParent(background.transform);
         iconObj.transform.localPosition = new Vector3(0f, 0f, -0.1f);
         iconObj.transform.localScale = new(0.53f, 0.53f, 1f);
+        iconObj.layer = background.layer;
         var renderer = iconObj.AddComponent<SpriteRenderer>();
         renderer.sprite = tabSprites.GetSprite(id * 2 + 1);
-        renderer.sortingOrder = 201;
 
         var collider = iconObj.AddComponent<BoxCollider2D>();
         collider.isTrigger = true;
@@ -761,12 +761,12 @@ public static class GameSettingMenuInitializePatch
 
         var nebulaSetting = new UnityEngine.GameObject("NebulaSetting");
         nebulaSetting.transform.SetParent(__instance.transform);
-        nebulaSetting.transform.localPosition = new Vector3(-3.8f, 0f, -5f);
+        nebulaSetting.transform.localPosition = new Vector3(0f, 0f, -5f);
         nebulaSetting.transform.localScale = UnityEngine.Vector3.one;
 
         var presetSetting = new UnityEngine.GameObject("PresetSetting");
         presetSetting.transform.SetParent(__instance.transform);
-        presetSetting.transform.localPosition = new Vector3(-3.35f, 0f, -5f);
+        presetSetting.transform.localPosition = new Vector3(0f, 0f, -5f);
         presetSetting.transform.localScale = UnityEngine.Vector3.one;
 
         nebulaSetting.SetActive(false);
@@ -775,7 +775,7 @@ public static class GameSettingMenuInitializePatch
         GameOptionsMenuStartPatch.nebulaSettings = nebulaSetting;
         GameOptionsMenuStartPatch.presetSettings = presetSetting;
 
-        OpenConfigScreen(nebulaSetting);
+        GameOptionsMenuStartPatch.OpenConfigScreen(nebulaSetting);
         BuildPresetScreen(presetSetting);
 
         var screens = new UnityEngine.GameObject[] { innerHolder, nebulaSetting, presetSetting };
@@ -791,50 +791,10 @@ public static class GameSettingMenuInitializePatch
         if (header != null) header.gameObject.SetActive(false);
     }
 
-    private static void OpenConfigScreen(UnityEngine.GameObject parent)
-    {
-        // offset y=-0.8 to avoid overlapping tab buttons at y≈2.48
-        var designer = MetaScreen.OpenScreen(parent, new Vector2(7.4f, 5.2f), new Vector2(0f, -0.8f));
-
-        string[] names = { "settings", "crewmateRoles", "impostorRoles", "neutralRoles", "ghostRoles", "modifiers", "escapeRoles", "advancedSettings" };
-        UnityEngine.Color[] colors = {
-            UnityEngine.Color.white, Palette.CrewmateBlue, Palette.ImpostorRed,
-            new UnityEngine.Color(255f/255f,170f/255f,0f),
-            new UnityEngine.Color(166f/255f,178f/255f,185f/255f),
-            new UnityEngine.Color(255f/255f,255f/255f,220f/255f),
-            UnityEngine.Color.yellow,
-            new UnityEngine.Color(128f/255f,194f/255f,255f/255f)
-        };
-
-        // designer.AddTopic(new MSString(6f, "NoS Settings", 3f, 3f, TMPro.TextAlignmentOptions.MidlineLeft, TMPro.FontStyles.Bold));
-        // designer.CustomUse(-0.2f);
-
-        for (int i = 0; i < (int)CustomOptionTab.MaxValidTabs; i++)
-        {
-            if ((((int)Game.GameModeProperty.GetProperty(CustomOptionHolder.GetCustomGameMode()).Tabs) & (1 << i)) != 0)
-            {
-                int index = i;
-                var btn = new MSButton(2f, 0.37f,
-                    Helpers.cs(colors[i], Language.Language.GetString("option.tab." + names[i])),
-                    TMPro.FontStyles.Bold,
-                    () => {
-                        CustomOption.CurrentTab = (Module.CustomOptionTab)(1 << index);
-                        var screen = parent.transform.FindChild("Screen")?.gameObject;
-                        if (screen != null) UnityEngine.Object.Destroy(screen);
-                        OpenConfigScreen(parent);
-                    }, colors[i].Blend(UnityEngine.Color.white, 0.65f));
-                designer.AddTopic(btn);
-                if (btn.text != null) { btn.text.fontSize = btn.text.fontSizeMax = 1.6f; btn.text.fontSizeMin = 0.8f; }
-                designer.CustomUse(-0.08f);
-            }
-        }
-
-        GameOptionsMenuStartPatch.OpenConfigTopOptionScreen(designer.screen.screen);
-    }
 
     private static void BuildPresetScreen(UnityEngine.GameObject parent)
     {
-        var designer = MetaScreen.OpenScreen(parent, new Vector2(7.4f, 5.2f), new Vector2(0f, -0.8f));
+        var designer = MetaScreen.OpenScreen(parent, new Vector2(7.4f, 5.2f), new Vector2(-3.4f, -0.8f));
 
         designer.AddTopic(new MSButton(2f, 0.4f, Language.Language.GetString("preset.save"), TMPro.FontStyles.Bold, () =>
         {
@@ -1139,9 +1099,9 @@ class GameOptionsMenuStartPatch
         }
     }
 
-    private static void OpenConfigScreen(GameObject setting)
+    internal static void OpenConfigScreen(GameObject setting)
     {
-        var designer = MetaScreen.OpenScreen(setting, new Vector2(1.5f, 6f), new Vector2(-4.15f, -0.8f));
+        var designer = MetaScreen.OpenScreen(setting, new Vector2(1.5f, 6f), new Vector2(-3.65f, -0.8f));
 
         var gameModeOption = CustomOptionHolder.GetCurrentGameModeOption();
         designer.AddTopic(new MSString(1.5f, gameModeOption.getName(), TMPro.TextAlignmentOptions.Center, TMPro.FontStyles.Bold));

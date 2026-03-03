@@ -6,7 +6,6 @@ namespace Nebula.Patches;
 public class GameStartManagerPatch
 {
     public static Dictionary<int, PlayerVersion> playerVersions = new Dictionary<int, PlayerVersion>();
-    private static float timer = 600f;
     private static float kickingTimer = 0f;
     private static bool versionSent = false;
     private static string lobbyCodeText = "";
@@ -75,7 +74,7 @@ public class GameStartManagerPatch
             // Trigger version refresh
             versionSent = false;
             // Reset lobby countdown timer
-            timer = 600f;
+            // timer = 600f;
             // Reset kicking timer
             kickingTimer = 0f;
             // Copy lobby code
@@ -213,12 +212,12 @@ public class GameStartManagerPatch
 
                 if (update) currentText = __instance.PlayerCounter.text;
 
-                timer = Mathf.Max(0f, timer -= Time.deltaTime);
-                int minutes = (int)timer / 60;
-                int seconds = (int)timer % 60;
-                string suffix = $" ({minutes:00}:{seconds:00})";
+                // timer = Mathf.Max(0f, timer -= Time.deltaTime);
+                // int minutes = (int)timer / 60;
+                // int seconds = (int)timer % 60;
+                // string suffix = $" ({minutes:00}:{seconds:00})";
 
-                __instance.PlayerCounter.text = currentText + suffix;
+                // __instance.PlayerCounter.text = currentText + suffix;
                 __instance.PlayerCounter.autoSizeTextContainer = true;
             }
             catch (Exception e) { }
