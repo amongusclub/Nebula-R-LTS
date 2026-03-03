@@ -1,5 +1,6 @@
 ﻿using BepInEx.Configuration;
 using System.Diagnostics;
+using Nebula.Module;
 
 namespace Nebula.Patches;
 
@@ -213,7 +214,6 @@ public static class ResetTextPatch
 [HarmonyPatch(typeof(OptionsMenuBehaviour), nameof(OptionsMenuBehaviour.Start))]
 public static class StartOptionMenuPatch
 {
-
     static public void LoadOption()
     {
         NebulaOption.configPictureDest = new Module.IntegerDataEntry("picutureDest",NebulaOption.configSaver, 0);
@@ -246,7 +246,7 @@ public static class StartOptionMenuPatch
         button.onState = on;
         Color color = on ? new Color(0f, 1f, 0.16470589f, 1f) : Color.white;
         button.Background.color = color;
-        button.Text.text = text + ": " + DestroyableSingleton<TranslationController>.Instance.GetString(button.onState ? StringNames.SettingsOn : StringNames.SettingsOff, new Il2CppReferenceArray<Il2CppSystem.Object>(0));
+        button.Text.text = text + ": " + DestroyableSingleton<TranslationController>.Instance.GetString(on ? StringNames.SettingsOn : StringNames.SettingsOff, new Il2CppReferenceArray<Il2CppSystem.Object>(0));
         if (button.Rollover)
         {
             button.Rollover.ChangeOutColor(color);
@@ -287,7 +287,6 @@ public static class StartOptionMenuPatch
             dialogue.transform.localScale = new Vector3(1, 1, 1);
             GameObject.Destroy(dialogue.BackButton.gameObject);
             background = dialogue.gameObject.transform.GetChild(0).GetComponent<SpriteRenderer>();
-
             tmpText = dialogue.target;
             result = dialogue.gameObject;
         }
@@ -299,13 +298,11 @@ public static class StartOptionMenuPatch
             dialogue.destroyOnClose = true;
             GameObject.Destroy(dialogue.gameObject.transform.GetChild(2).gameObject);
             background = dialogue.gameObject.transform.GetChild(3).GetComponent<SpriteRenderer>();
-
             tmpText = dialogue.TextAreaTMP;
             result = dialogue.gameObject;
         }
 
         background.size = new Vector2(5f, 2f);
-
         tmpText.gameObject.GetComponent<RectTransform>().sizeDelta = new Vector2(0, 0);
         tmpText.gameObject.transform.localScale = new Vector3(1f, 1f, 1f);
         tmpText.gameObject.transform.localPosition = new Vector3(0f, 0.48f, -1f);
@@ -320,7 +317,7 @@ public static class StartOptionMenuPatch
         PassiveButton passiveButton;
         GameObject textObj;
 
-        //いいえボタン
+        // いいえボタン
         var noButton = GameObject.Instantiate(buttonTemplate, null);
         noButton.transform.SetParent(result.transform);
         noButton.transform.localScale = new Vector3(1f, 1f, 1f);
@@ -334,10 +331,9 @@ public static class StartOptionMenuPatch
         passiveButton.OnClick.AddListener((UnityEngine.Events.UnityAction)(() =>
         {
             GameObject.Destroy(result);
-        }
-        ));
+        }));
 
-        //はいボタン
+        // はいボタン
         var yesButton = GameObject.Instantiate(buttonTemplate, null);
         yesButton.transform.SetParent(result.transform);
         yesButton.transform.localScale = new Vector3(1f, 1f, 1f);
@@ -352,14 +348,13 @@ public static class StartOptionMenuPatch
         {
             yesAction();
             GameObject.Destroy(result);
-        }
-        ));
+        }));
 
         result.SetActive(true);
         return result;
     }
 
-    private static ToggleButtonBehaviour AddButton(Vector2 pos,string name, Action onClicked, GameObject nebulaTab,GameObject toggleButtonTemplate)
+    private static ToggleButtonBehaviour AddButton(Vector2 pos, string name, Action onClicked, GameObject nebulaTab, GameObject toggleButtonTemplate)
     {
         var button = GameObject.Instantiate(toggleButtonTemplate, null);
         button.transform.SetParent(nebulaTab.transform);
@@ -375,10 +370,11 @@ public static class StartOptionMenuPatch
 
     public static void Postfix(OptionsMenuBehaviour __instance)
     {
+        __instance.transform.localPosition = new(0, 0, -700f);
+
         var tabs = new List<TabGroup>(__instance.Tabs.ToArray());
 
         PassiveButton passiveButton;
-        ToggleButtonBehaviour toggleButton;
 
         //設定項目を追加する
 
@@ -396,11 +392,11 @@ public static class StartOptionMenuPatch
         GameObject toggleButtonTemplate = tabs[0].Content.transform.FindChild("MiscGroup").FindChild("StreamerModeButton").gameObject;
 
         //Snapshot
-        debugSnapshot = AddButton(new Vector2(0,0),"SnapshotButton", () =>
+        debugSnapshot = AddButton(new Vector2(0, 0), "SnapshotButton", () =>
         {
             debugSnapshot.UpdateToggleText(!debugSnapshot.onState, Language.Language.GetString("config.debug.snapshot"));
             NebulaOption.configSnapshot.Value = debugSnapshot.onState;
-        },nebulaTab,toggleButtonTemplate);
+        }, nebulaTab, toggleButtonTemplate);
 
         //OutputHash
         debugOutputHash = AddButton(new Vector2(1, 0), "OutputHashButton", () =>
@@ -619,10 +615,7 @@ public static class StartOptionMenuPatch
             timeoutExtension.UpdateButtonText(Language.Language.GetString("config.option.timeoutExtension"), NebulaOption.GetTimeoutExtension());
             dontCareMismatchedNoS.UpdateToggleText(NebulaOption.configDontCareMismatchedNoS.Value, Language.Language.GetString("config.option.dontCareMismatchedNoS"));
             preventSpoiler.UpdateToggleText(NebulaOption.configPreventSpoiler.Value, Language.Language.GetString("config.option.preventSpoiler"));
-
-            passiveButton.OnMouseOver.Invoke();
-        }
-        ));
+        }));
 
         float y = tabs[0].transform.localPosition.y, z = tabs[0].transform.localPosition.z;
         if (tabs.Count == 4)
@@ -631,7 +624,6 @@ public static class StartOptionMenuPatch
             for (int i = 0; i < 4; i++) tabs[i].transform.localPosition = new Vector3(1.62f * ((float)i - 1.5f), y, z);
 
         __instance.Tabs = new Il2CppReferenceArray<TabGroup>(tabs.ToArray());
-
-
     }
+
 }

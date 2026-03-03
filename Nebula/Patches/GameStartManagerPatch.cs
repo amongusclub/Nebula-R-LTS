@@ -164,16 +164,18 @@ public class GameStartManagerPatch
                             }
                         }
                     }
-                    if (blockStart)
-                    {
-                        __instance.StartButton.color = __instance.startLabelText.color = Palette.DisabledClear;
+                    if (blockStart) {
                         __instance.GameStartText.text = message;
-                        __instance.GameStartText.transform.localPosition = __instance.StartButton.transform.localPosition + Vector3.up * 2;
-                    }
-                    else
-                    {
-                        __instance.StartButton.color = __instance.startLabelText.color = ((__instance.LastPlayerCount >= minPlayers && __instance.LastPlayerCount <= maxPlayers) ? Palette.EnabledColor : Palette.DisabledClear);
-                        __instance.GameStartText.transform.localPosition = __instance.StartButton.transform.localPosition;
+                        __instance.GameStartText.transform.localPosition = __instance.StartButton.transform.localPosition + Vector3.up * 5;
+                        __instance.GameStartText.transform.localScale = new Vector3(2f, 2f, 1f);
+                        __instance.GameStartTextParent.SetActive(true);
+                    } else {
+                        __instance.GameStartText.transform.localPosition = Vector3.zero;
+                        __instance.GameStartText.transform.localScale = new Vector3(1.2f, 1.2f, 1f);
+                        if (!__instance.GameStartText.text.Contains(FastDestroyableSingleton<TranslationController>.Instance.GetString(StringNames.GameStarting).Replace("{0}", ""))) {
+                            __instance.GameStartText.text = String.Empty;
+                            __instance.GameStartTextParent.SetActive(false);
+                        }
                     }
                 }
 
@@ -297,18 +299,25 @@ public class GameStartManagerPatch
                             var playerControl = UnityEngine.Object.Instantiate(AmongUsClient.Instance.PlayerPrefab);
                             var i = playerControl.PlayerId = (byte)GameData.Instance.GetAvailableId();
 
-                            GameData.Instance.AddPlayer(playerControl);
+                            playerControl.isDummy = true;
 
+                            var playerInfo = GameData.Instance.AddDummy(playerControl);
+        
                             playerControl.transform.position = PlayerControl.LocalPlayer.transform.position;
                             playerControl.GetComponent<DummyBehaviour>().enabled = true;
                             playerControl.isDummy = true;
-                            playerControl.SetName(Patches.RandomNamePatch.GetRandomName());
+                            playerControl.SetName(AccountManager.Instance.GetRandomName());
                             playerControl.SetColor(i);
+                            playerControl.SetHat(CosmeticsLayer.EMPTY_HAT_ID, i);
+                            playerControl.SetVisor(CosmeticsLayer.EMPTY_VISOR_ID, i);
+                            playerControl.SetSkin(CosmeticsLayer.EMPTY_SKIN_ID, i);
+                            playerControl.SetPet(CosmeticsLayer.EMPTY_PET_ID, i);
+                            // layerControl.GetComponent<UncertifiedPlayer>().Certify();
 
                             AmongUsClient.Instance.Spawn(playerControl, -2, InnerNet.SpawnFlags.None);
-                            GameData.Instance.RpcSetTasks(playerControl.PlayerId, new byte[0]);
+                            playerInfo.RpcSetTasks(new byte[0]);
 
-                            //playerControl.StartCoroutine(playerControl.CoPlayerAppear().WrapToIl2Cpp());
+                            return playerControl;
                         }
                     }
                 }

@@ -52,20 +52,25 @@ public class NebulaManager : MonoBehaviour
             if (Input.GetKeyDown(KeyCode.F1))
             {
                 var playerControl = UnityEngine.Object.Instantiate(AmongUsClient.Instance.PlayerPrefab);
-
                 var i = playerControl.PlayerId = (byte)GameData.Instance.GetAvailableId();
 
-                GameData.Instance.AddPlayer(playerControl);
+                playerControl.isDummy = true;
 
-                //playerControl.transform.position = PlayerControl.LocalPlayer.transform.position;
+                var playerInfo = GameData.Instance.AddDummy(playerControl);
+        
+                playerControl.transform.position = PlayerControl.LocalPlayer.transform.position;
                 playerControl.GetComponent<DummyBehaviour>().enabled = true;
                 playerControl.isDummy = true;
-                playerControl.SetName(Patches.RandomNamePatch.GetRandomName());
-                playerControl.SetColor(NebulaPlugin.rnd.Next(15));
+                playerControl.SetName(AccountManager.Instance.GetRandomName());
+                playerControl.SetColor(i);
+                playerControl.SetHat(CosmeticsLayer.EMPTY_HAT_ID, i);
+                playerControl.SetVisor(CosmeticsLayer.EMPTY_VISOR_ID, i);
+                playerControl.SetSkin(CosmeticsLayer.EMPTY_SKIN_ID, i);
+                playerControl.SetPet(CosmeticsLayer.EMPTY_PET_ID, i);
+                // playerControl.GetComponent<UncertifiedPlayer>().Certify();
 
                 AmongUsClient.Instance.Spawn(playerControl, -2, InnerNet.SpawnFlags.None);
-
-                GameData.Instance.RpcSetTasks(playerControl.PlayerId, new byte[0]);
+                playerInfo.RpcSetTasks(new byte[0]);
             }
 
             // Suiside

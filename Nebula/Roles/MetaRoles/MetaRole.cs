@@ -1,4 +1,4 @@
-﻿using Nebula.Module;
+using Nebula.Module;
 using Nebula.Module.Information;
 using Nebula.Tasks;
 using UnityEngine;

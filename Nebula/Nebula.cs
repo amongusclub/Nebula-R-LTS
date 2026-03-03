@@ -132,7 +132,7 @@ public static class AmBannedPatch
     }
 }
 
-[HarmonyPatch(typeof(Constants), nameof(Constants.ShouldHorseAround))]
+[HarmonyPatch(typeof(AprilFoolsMode), nameof(AprilFoolsMode.ShouldHorseAround))]
 public static class AprilFoolPatch
 {
     public static bool Prefix(out bool __result)

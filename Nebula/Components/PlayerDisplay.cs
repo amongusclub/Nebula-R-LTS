@@ -43,7 +43,7 @@ public class PlayerDisplay : MonoBehaviour
 
     public void UpdateFromPlayerOutfit(PlayerControl player, bool isDead, bool includePet)
     {
-        GameData.PlayerOutfit outfit = player.Data.Outfits[player.CurrentOutfitType];
+        NetworkedPlayerInfo.PlayerOutfit outfit = player.Data.Outfits[player.CurrentOutfitType];
 
 
         Cosmetics.SetMaskType(PlayerMaterial.MaskType.None);
@@ -63,7 +63,7 @@ public class PlayerDisplay : MonoBehaviour
     public void SetBodyType(PlayerBodyTypes bodyType)
     {
         Cosmetics.EnsureInitialized(bodyType);
-        Animations.SetBodyType(bodyType,Cosmetics.currentBodySprite.flippedCosmeticOffset);
+        Animations.SetBodyType(bodyType, Cosmetics.currentBodySprite.normalCosmeticOffset, Cosmetics.currentBodySprite.flippedCosmeticOffset);
         if (bodyType == PlayerBodyTypes.Normal) Cosmetics.normalBodySprite.Visible = true;
     }
 

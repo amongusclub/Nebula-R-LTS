@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using System.Reflection;
 using Hazel;
 using BepInEx.Configuration;
@@ -690,37 +690,179 @@ public static class CoSpawnPlayerPatch
     }
 }
 
-[HarmonyPatch(typeof(GameSettingMenu), nameof(GameSettingMenu.InitializeOptions))]
+[HarmonyPatch(typeof(GameSettingMenu), nameof(GameSettingMenu.Start))]
 public static class GameSettingMenuInitializePatch
 {
-    public static void Prefix(GameSettingMenu __instance)
+    public static DividedSpriteLoader tabSprites = new DividedSpriteLoader("Nebula.Resources.TabIcon.png", 100f, 6, 1);
+    public static SpriteLoader backSprite = new SpriteLoader("Nebula.Resources.TabBackground.png", 100f);
+
+    private static (UnityEngine.GameObject, SpriteRenderer, int) CreateTab(GameSettingMenu __instance, UnityEngine.GameObject phoneLeft, string tabName, UnityEngine.GameObject[] screens, int id, List<(UnityEngine.GameObject, SpriteRenderer, int)> allTabs)
     {
-        var defaultTransform = __instance.AllItems.FirstOrDefault(x => x.gameObject.activeSelf && x.name.Equals("ResetToDefault", StringComparison.OrdinalIgnoreCase));
-        if (defaultTransform != null)
-            __instance.HideForOnline = new Transform[] { defaultTransform };
-        else
-            __instance.HideForOnline = new Transform[] { };
+        var background = new UnityEngine.GameObject("Tab");
+        background.transform.SetParent(__instance.transform);
+        background.transform.localPosition = new(-0.8f + (id * 0.8f), 2.48f, 0.5f);
+        background.transform.localScale = UnityEngine.Vector3.one;
+        var bgRenderer = background.AddComponent<SpriteRenderer>();
+        bgRenderer.sprite = backSprite.GetSprite();
+        bgRenderer.sortingOrder = 200;
+        background.transform.localScale = new(0.5635f, 0.5635f, 1f);
+
+        var iconObj = new UnityEngine.GameObject(tabName);
+        iconObj.transform.SetParent(background.transform);
+        iconObj.transform.localPosition = new Vector3(0f, 0f, -0.1f);
+        iconObj.transform.localScale = new(0.53f, 0.53f, 1f);
+        var renderer = iconObj.AddComponent<SpriteRenderer>();
+        renderer.sprite = tabSprites.GetSprite(id * 2 + 1);
+        renderer.sortingOrder = 201;
+
+        var collider = iconObj.AddComponent<BoxCollider2D>();
+        collider.isTrigger = true;
+        collider.size = new(1.6f, 1.6f);
+
+        var button = iconObj.AddComponent<PassiveButton>();
+        button.OnMouseOver = new UnityEngine.Events.UnityEvent();
+        button.OnMouseOut = new UnityEngine.Events.UnityEvent();
+        button.OnClick = new UnityEngine.UI.Button.ButtonClickedEvent();
+        button.OnClick.AddListener((UnityEngine.Events.UnityAction)(() =>
+        {
+            foreach (var tab in screens) tab?.SetActive(false);
+            screens[id]?.SetActive(true);
+            foreach (var tab in allTabs)
+            {
+                var lp = tab.Item1.transform.localPosition;
+                lp.z = -0.4f + 0.1f * tab.Item3;
+                tab.Item1.transform.localPosition = lp;
+            }
+            var lp2 = allTabs[id].Item1.transform.localPosition;
+            lp2.z = -1f;
+            allTabs[id].Item1.transform.localPosition = lp2;
+            phoneLeft.SetActive(id != 1);
+        }));
+
+        return (background, renderer, id);
+    }
+
+    public static void Postfix(GameSettingMenu __instance)
+    {
+        var inners = ((int[])[2, 3, 4, 5]).Select(i => __instance.transform.GetChild(i)).ToArray();
+
+        //Background(Phone)
+        var phoneLeft = __instance.transform.GetChild(1).GetChild(0).gameObject;
+        //Close Button
+        __instance.transform.GetChild(6).transform.localPosition = new(-4.85f, 2.6f, -25f);
+        //Role Settings
+        __instance.transform.GetChild(4).GetChild(2).gameObject.SetActive(false);
+
+        var innerHolder = new UnityEngine.GameObject("InnerHolder");
+        innerHolder.transform.SetParent(__instance.transform);
+        innerHolder.transform.localPosition = Vector3.zero;
+        innerHolder.transform.localScale = UnityEngine.Vector3.one;
+        foreach (var inner in inners) inner.SetParent(innerHolder.transform);
+
+        var nebulaSetting = new UnityEngine.GameObject("NebulaSetting");
+        nebulaSetting.transform.SetParent(__instance.transform);
+        nebulaSetting.transform.localPosition = new Vector3(-3.8f, 0f, -5f);
+        nebulaSetting.transform.localScale = UnityEngine.Vector3.one;
+
+        var presetSetting = new UnityEngine.GameObject("PresetSetting");
+        presetSetting.transform.SetParent(__instance.transform);
+        presetSetting.transform.localPosition = new Vector3(-3.35f, 0f, -5f);
+        presetSetting.transform.localScale = UnityEngine.Vector3.one;
+
+        nebulaSetting.SetActive(false);
+        presetSetting.SetActive(false);
+
+        GameOptionsMenuStartPatch.nebulaSettings = nebulaSetting;
+        GameOptionsMenuStartPatch.presetSettings = presetSetting;
+
+        OpenConfigScreen(nebulaSetting);
+        BuildPresetScreen(presetSetting);
+
+        var screens = new UnityEngine.GameObject[] { innerHolder, nebulaSetting, presetSetting };
+        List<(UnityEngine.GameObject, SpriteRenderer, int)> allTabs = new();
+        allTabs.Add(CreateTab(__instance, phoneLeft, "VanillaTab", screens, 0, allTabs));
+        allTabs.Add(CreateTab(__instance, phoneLeft, "NebulaTab", screens, 1, allTabs));
+        allTabs.Add(CreateTab(__instance, phoneLeft, "PresetTab", screens, 2, allTabs));
+
+        allTabs[0].Item2.GetComponent<PassiveButton>().OnClick.Invoke();
+
+        // 隐藏原版Header/Tabs防止重叠干扰
+        var header = __instance.transform.FindChild("Header");
+        if (header != null) header.gameObject.SetActive(false);
+    }
+
+    private static void OpenConfigScreen(UnityEngine.GameObject parent)
+    {
+        // offset y=-0.8 to avoid overlapping tab buttons at y≈2.48
+        var designer = MetaScreen.OpenScreen(parent, new Vector2(7.4f, 5.2f), new Vector2(0f, -0.8f));
+
+        string[] names = { "settings", "crewmateRoles", "impostorRoles", "neutralRoles", "ghostRoles", "modifiers", "escapeRoles", "advancedSettings" };
+        UnityEngine.Color[] colors = {
+            UnityEngine.Color.white, Palette.CrewmateBlue, Palette.ImpostorRed,
+            new UnityEngine.Color(255f/255f,170f/255f,0f),
+            new UnityEngine.Color(166f/255f,178f/255f,185f/255f),
+            new UnityEngine.Color(255f/255f,255f/255f,220f/255f),
+            UnityEngine.Color.yellow,
+            new UnityEngine.Color(128f/255f,194f/255f,255f/255f)
+        };
+
+        // designer.AddTopic(new MSString(6f, "NoS Settings", 3f, 3f, TMPro.TextAlignmentOptions.MidlineLeft, TMPro.FontStyles.Bold));
+        // designer.CustomUse(-0.2f);
+
+        for (int i = 0; i < (int)CustomOptionTab.MaxValidTabs; i++)
+        {
+            if ((((int)Game.GameModeProperty.GetProperty(CustomOptionHolder.GetCustomGameMode()).Tabs) & (1 << i)) != 0)
+            {
+                int index = i;
+                var btn = new MSButton(2f, 0.37f,
+                    Helpers.cs(colors[i], Language.Language.GetString("option.tab." + names[i])),
+                    TMPro.FontStyles.Bold,
+                    () => {
+                        CustomOption.CurrentTab = (Module.CustomOptionTab)(1 << index);
+                        var screen = parent.transform.FindChild("Screen")?.gameObject;
+                        if (screen != null) UnityEngine.Object.Destroy(screen);
+                        OpenConfigScreen(parent);
+                    }, colors[i].Blend(UnityEngine.Color.white, 0.65f));
+                designer.AddTopic(btn);
+                if (btn.text != null) { btn.text.fontSize = btn.text.fontSizeMax = 1.6f; btn.text.fontSizeMin = 0.8f; }
+                designer.CustomUse(-0.08f);
+            }
+        }
+
+        GameOptionsMenuStartPatch.OpenConfigTopOptionScreen(designer.screen.screen);
+    }
+
+    private static void BuildPresetScreen(UnityEngine.GameObject parent)
+    {
+        var designer = MetaScreen.OpenScreen(parent, new Vector2(7.4f, 5.2f), new Vector2(0f, -0.8f));
+
+        designer.AddTopic(new MSButton(2f, 0.4f, Language.Language.GetString("preset.save"), TMPro.FontStyles.Bold, () =>
+        {
+            CustomOptionPreset.Export().Output();
+            Helpers.ShowDialog("preset.dialog.save");
+        }));
+
+        CustomOptionPreset.LoadPresets();
+        foreach (var preset in CustomOptionPreset.Presets)
+        {
+            string name = preset.Name;
+            designer.AddTopic(new MSButton(3f, 0.37f, name, TMPro.FontStyles.Normal, () =>
+            {
+                bool result = CustomOptionPreset.LoadAndInput("Presets/" + name + ".options");
+                Helpers.ShowDialog(result ? "preset.dialog.load" : "preset.dialog.loadFailed");
+            }));
+            designer.CustomUse(-0.08f);
+        }
     }
 }
 
-delegate void OptionInitializer(GameOptionsMenu menu, StringOption stringTemplate, List<OptionBehaviour> options, GameObject settings);
-
-public class CustomOptionBehaviour : MonoBehaviour
-{
-    static CustomOptionBehaviour()
-    {
-        ClassInjector.RegisterTypeInIl2Cpp<CustomOptionBehaviour>();
-    }
-
-}
-
-[HarmonyPatch(typeof(GameOptionsMenu), nameof(GameOptionsMenu.Start))]
+[HarmonyPatch(typeof(GameOptionsMenu), nameof(GameOptionsMenu.Initialize))]
 class GameOptionsMenuStartPatch
 {
     public static GameObject? nebulaSettings = null;
     public static GameObject? presetSettings = null;
 
-    private static bool FixTab(GameObject? currentSettings, GameOptionsMenu __instance, string tabIconPath, string tabName, string settingsName, string settingsDisplayName, OptionInitializer initializer)
+    private static bool FixTab(GameObject? currentSettings, GameOptionsMenu __instance, string tabIconPath, string tabName, string settingsName, string settingsDisplayName, System.Action<GameOptionsMenu, StringOption, Il2CppSystem.Collections.Generic.List<OptionBehaviour>, GameObject> initializer)
     {
         var tabs = GameSettingMenu.Instance.transform.FindChild("Header").FindChild("Tabs");
         tabs.gameObject.SetActive(true);
@@ -748,11 +890,11 @@ class GameOptionsMenuStartPatch
 
         foreach (OptionBehaviour option in customMenu.GetComponentsInChildren<OptionBehaviour>())
             UnityEngine.Object.Destroy(option.gameObject);
-        List<OptionBehaviour> customOptions = new List<OptionBehaviour>();
+        Il2CppSystem.Collections.Generic.List<OptionBehaviour> customOptions = new Il2CppSystem.Collections.Generic.List<OptionBehaviour>();
 
         initializer(customMenu, template, customOptions, customSettings);
 
-        customMenu.Children = customOptions.ToArray();
+        customMenu.Children = customOptions;
         customSettings.gameObject.SetActive(false);
 
         return true;
@@ -776,7 +918,14 @@ class GameOptionsMenuStartPatch
         int leftSkip = skip;
         bool canIncrease = false;
 
-        designer.AddTopic(new MSString(0.4f, skip > 0 ? "∧" : "", TMPro.TextAlignmentOptions.Center, TMPro.FontStyles.Bold));
+        designer.AddTopic(new MSButton(0.4f, 0.4f, skip > 0 ? "∧" : "", TMPro.FontStyles.Bold, () =>
+        {
+            if (skip > 0)
+            {
+                designer.screen.Close();
+                OpenConfigSubOptionScreen(leftTabScreen, topOption, skip - 1);
+            }
+        }));
 
         void refresher()
         {
@@ -836,7 +985,14 @@ class GameOptionsMenuStartPatch
                 if (!AddTopic(topic)) break;
 
 
-        designer.AddTopic(new MSString(0.4f, canIncrease ? "∨" : "", TMPro.TextAlignmentOptions.Center, TMPro.FontStyles.Bold));
+        designer.AddTopic(new MSButton(0.4f, 0.4f, canIncrease ? "∨" : "", TMPro.FontStyles.Bold, () =>
+        {
+            if (canIncrease)
+            {
+                designer.screen.Close();
+                OpenConfigSubOptionScreen(leftTabScreen, topOption, skip + 1);
+            }
+        }));
 
         designer.CustomUse(4.55f - designer.Used);
         var underStr = new MSMultiString(8f,1.5f, " \n \n ", TMPro.TextAlignmentOptions.Top, TMPro.FontStyles.Bold);
@@ -845,7 +1001,7 @@ class GameOptionsMenuStartPatch
 
         skip -= leftSkip;
 
-        IEnumerator GetEnumerator()
+        System.Collections.IEnumerator GetEnumerator()
         {
             float t = 0;
             while (t < 0.05f)
@@ -858,37 +1014,37 @@ class GameOptionsMenuStartPatch
             {
                 var d = (int)Input.mouseScrollDelta.y;
 
-                if (d > 0)
+                if (d > 0 && skip > 0)
                 {
-                    if (skip > 0)
-                    {
-                        designer.screen.Close();
-                        GameOptionsMenuStartPatch.OpenConfigSubOptionScreen(designer.screen.screen.transform.parent.gameObject, topOption, skip - 1);
-                    }
+                    designer.screen.Close();
+                    GameOptionsMenuStartPatch.OpenConfigSubOptionScreen(leftTabScreen, topOption, skip - 1);
+                    yield break;
                 }
-                else if (d < 0)
+                else if (d < 0 && canIncrease)
                 {
-                    if (canIncrease)
-                    {
-                        designer.screen.Close();
-                        GameOptionsMenuStartPatch.OpenConfigSubOptionScreen(designer.screen.screen.transform.parent.gameObject, topOption, skip + 1);
-                    }
+                    designer.screen.Close();
+                    GameOptionsMenuStartPatch.OpenConfigSubOptionScreen(leftTabScreen, topOption, skip + 1);
+                    yield break;
                 }
 
                 yield return null;
             }
         }
 
-        designer.screen.screen.AddComponent<CustomOptionBehaviour>().StartCoroutine(GetEnumerator().WrapToIl2Cpp());
+        var gameOptionsMenu = leftTabScreen.GetComponentInParent<GameOptionsMenu>()
+            ?? leftTabScreen.GetComponentInChildren<GameOptionsMenu>()
+            ?? UnityEngine.Object.FindObjectOfType<GameOptionsMenu>();
+        if (gameOptionsMenu != null)
+            gameOptionsMenu.StartCoroutine(GetEnumerator().WrapToIl2Cpp());
     }
 
-    private static Color? GetTabUnifiedColor(CustomOptionTab tab)
+    private static UnityEngine.Color? GetTabUnifiedColor(CustomOptionTab tab)
     {
-        if (tab == CustomOptionTab.ImpostorRoles) return Palette.ImpostorRed;
+        if (tab == CustomOptionTab.ImpostorRoles) return UnityEngine.Color.red;
         return null;
     }
 
-    private static void OpenConfigTopOptionScreen(GameObject leftTabScreen)
+    internal static void OpenConfigTopOptionScreen(GameObject leftTabScreen)
     {
         var designer = MetaScreen.OpenScreen(leftTabScreen, new Vector2(5.4f, 6f), new Vector2(3.7f, 0f));
         var monitor = MetaScreen.OpenScreen(designer.screen.screen, new Vector2(3.2f, 6f), new Vector2(4.12f, 0f));
@@ -912,7 +1068,7 @@ class GameOptionsMenuStartPatch
                 {
                     if (option == CustomOptionHolder.roleCountOption)
                     {
-                        var builder = new StringBuilder();
+                        var builder = new System.Text.StringBuilder();
                         GameOptionStringGenerator.GenerateRoleCountString(builder);
                         textArea.text.text = builder.ToString();
                     }
@@ -966,7 +1122,7 @@ class GameOptionsMenuStartPatch
                     designer.screen.Close();
                     OpenConfigTopOptionScreen(leftTabScreen);
                 }
-            }, (myOption.selections.Length == 2 && myOption.getSelection() == 0) ? Palette.DisabledGrey : ((myOption.yellowCondition != null && myOption.yellowCondition(CustomOption.CurrentTab) ? Color.yellow : Color.white))));
+            }, (myOption.selections.Length == 2 && myOption.getSelection() == 0) ? Palette.DisabledGrey : ((myOption.yellowCondition != null && myOption.yellowCondition(CustomOption.CurrentTab) ? UnityEngine.Color.yellow : UnityEngine.Color.white))));
             options.Add(option);
 
             if (buttons.Count == 3)
@@ -1006,11 +1162,11 @@ class GameOptionsMenuStartPatch
         {
                 "settings","crewmateRoles","impostorRoles","neutralRoles","ghostRoles","modifiers","escapeRoles","advancedSettings"
             };
-        Color[] colors =
+        UnityEngine.Color[] colors =
         {
-                Color.white,Palette.CrewmateBlue,Palette.ImpostorRed,new Color(255f/255f,170f/255f,0f),
-                new Color(166f/255f,178f/255f,185f/255f),new Color(255f/255f,255f/255f,220f/255f),Color.yellow,
-                new Color(128f/255f,194f/255f,255f/255f)
+                UnityEngine.Color.white,Palette.CrewmateBlue,Palette.ImpostorRed,new UnityEngine.Color(255f/255f,170f/255f,0f),
+                new UnityEngine.Color(166f/255f,178f/255f,185f/255f),new UnityEngine.Color(255f/255f,255f/255f,220f/255f),UnityEngine.Color.yellow,
+                new UnityEngine.Color(128f/255f,194f/255f,255f/255f)
             };
 
         for (int i = 0; i < (int)CustomOptionTab.MaxValidTabs; i++)
@@ -1024,7 +1180,7 @@ class GameOptionsMenuStartPatch
                     CustomOption.CurrentTab = (Module.CustomOptionTab)(1 << index);
                     OpenConfigScreen(setting);
                     designer.screen.Close();
-                }, colors[i].Blend(Color.white, 0.65f));
+                }, colors[i].Blend(UnityEngine.Color.white, 0.65f));
                 designer.AddTopic(button);
                 button.text.fontSize = button.text.fontSizeMax = 1.6f;
                 button.text.fontSizeMin = 0.8f;
@@ -1040,7 +1196,7 @@ class GameOptionsMenuStartPatch
         return FixTab(nebulaSettings, __instance, "Nebula.Resources.TabIcon.png", "NebulaTab", "NebulaSettings", "The Nebula Settings", (menu, temp, list, setting) =>
             {
                 nebulaSettings = setting;
-                nebulaSettings.transform.localPosition = new Vector3(0, 0, 0);
+                nebulaSettings.transform.localPosition = new UnityEngine.Vector3(0, 0, 0);
                 nebulaSettings.GetComponent<AspectPosition>().enabled = false;
                 setting.transform.DestroyChildren();
 
@@ -1048,15 +1204,15 @@ class GameOptionsMenuStartPatch
             });
     }
 
-    private static StringOption SetupStringOption(List<OptionBehaviour> list, StringOption template, GameOptionsMenu menu)
+    private static StringOption SetupStringOption(Il2CppSystem.Collections.Generic.List<OptionBehaviour> list, StringOption template, GameOptionsMenu menu)
     {
         StringOption stringOption = UnityEngine.Object.Instantiate(template, menu.transform);
         stringOption.enabled = false;
         list.Add(stringOption);
-        stringOption.OnValueChanged = new Action<OptionBehaviour>((o) => { });
+        stringOption.OnValueChanged = new System.Action<OptionBehaviour>((o) => { });
         stringOption.TitleText.text = "";
-        stringOption.TitleText.rectTransform.sizeDelta = new Vector2(stringOption.TitleText.rectTransform.sizeDelta.x + 2.4f, stringOption.TitleText.rectTransform.sizeDelta.y);
-        stringOption.TitleText.rectTransform.anchoredPosition = new Vector2(stringOption.TitleText.rectTransform.anchoredPosition.x + 1.2f, 0);
+        stringOption.TitleText.rectTransform.sizeDelta = new UnityEngine.Vector2(stringOption.TitleText.rectTransform.sizeDelta.x + 2.4f, stringOption.TitleText.rectTransform.sizeDelta.y);
+        stringOption.TitleText.rectTransform.anchoredPosition = new UnityEngine.Vector2(stringOption.TitleText.rectTransform.anchoredPosition.x + 1.2f, 0);
 
         stringOption.Value = 0;
         stringOption.ValueText.text = "";
@@ -1066,7 +1222,7 @@ class GameOptionsMenuStartPatch
         stringOption.ValueText.enabled = false;
 
         BoxCollider2D collider = stringOption.gameObject.AddComponent<BoxCollider2D>();
-        collider.size = new Vector2(4.5f, 0.45f);
+        collider.size = new UnityEngine.Vector2(4.5f, 0.45f);
 
         PassiveButton button = stringOption.gameObject.AddComponent<PassiveButton>();
         button.OnMouseOver = new UnityEngine.Events.UnityEvent();
@@ -1131,118 +1287,26 @@ class GameOptionsMenuStartPatch
          });
     }
 
-    private static IEnumerator GetEnumrator(GameObject parent, List<GameObject> tabs)
-    {
-        while (true)
-        {
-            if (!parent) break;
-
-            parent.SetActive(nebulaSettings.gameObject.active);
-
-            if (nebulaSettings.gameObject.active)
-            {
-                int index = 0;
-                int n = 1;
-                foreach (var tab in tabs)
-                {
-                    if ((((int)Game.GameModeProperty.GetProperty(CustomOptionHolder.GetCustomGameMode()).Tabs) & n) != 0)
-                    {
-                        tab.SetActive(true);
-                        tab.transform.localPosition = new Vector3((float)(index / 6) * -0.8f, -0.7f * (float)(index % 6));
-                        index++;
-                    }
-                    else
-                    {
-                        tab.SetActive(false);
-                    }
-                    n <<= 1;
-                }
-            }
-            yield return 0;
-        }
-        yield break;
-    }
-
     public static void Postfix(GameOptionsMenu __instance)
     {
-        bool result = false, f1 = FixNebulaTab(__instance), f2 = FixPresetTab(__instance);
-        result = f1 | f2;
-
-        if (!result) return;
-
-        var header = GameSettingMenu.Instance.transform.FindChild("Header").FindChild("Tabs");
-        var gameTab = header.FindChild("GameTab").gameObject;
-        var nebulaTab = header.FindChild("NebulaTab").gameObject;
-        var presetTab = header.FindChild("PresetTab").gameObject;
-        header.FindChild("RoleTab").gameObject.SetActive(false);
-
-        gameTab.transform.localPosition = new Vector3(-1f, 0, -5);
-        //roleTab.transform.localPosition = new Vector3(-0.5f, 0, -5);
-        nebulaTab.transform.localPosition = new Vector3(0f, 0, -5);
-        presetTab.transform.localPosition = new Vector3(1f, 0, -5);
-
-        var gameSettings = GameObject.Find("Game Settings");
-        var gameSettingMenu = UnityEngine.Object.FindObjectsOfType<GameSettingMenu>().FirstOrDefault();
-
-        var nebulaTabHighlight = nebulaTab.transform.FindChild("Hat Button").FindChild("Tab Background").GetComponent<SpriteRenderer>();
-        var presetTabHighlight = presetTab.transform.FindChild("Hat Button").FindChild("Tab Background").GetComponent<SpriteRenderer>();
-
-        var tabs = new GameObject[] { gameTab, nebulaTab, presetTab };
-        for (int i = 0; i < tabs.Length; i++)
-        {
-            var button = tabs[i].GetComponentInChildren<PassiveButton>();
-            if (button == null) continue;
-            int copiedIndex = i;
-            button.OnClick = new UnityEngine.UI.Button.ButtonClickedEvent();
-            button.OnClick.AddListener((UnityEngine.Events.UnityAction)(() =>
-            {
-                gameSettingMenu.RegularGameSettings.SetActive(false);
-                gameSettingMenu.HideNSeekSettings.SetActive(false);
-                gameSettingMenu.RolesSettings.gameObject.SetActive(false);
-                nebulaSettings?.gameObject.SetActive(false);
-                presetSettings?.gameObject.SetActive(false);
-                gameSettingMenu.GameSettingsHightlight.enabled = false;
-                gameSettingMenu.RolesSettingsHightlight.enabled = false;
-                nebulaTabHighlight.enabled = false;
-                presetTabHighlight.enabled = false;
-                if (copiedIndex == 0)
-                {
-                    if(GameOptionsManager.Instance.currentGameMode==GameModes.Normal)
-                        gameSettingMenu.RegularGameSettings.SetActive(true);
-                    else
-                        gameSettingMenu.HideNSeekSettings.SetActive(true);
-                    gameSettingMenu.GameSettingsHightlight.enabled = true;
-                }
-                else if (copiedIndex == 1)
-                {
-                    nebulaSettings.gameObject.SetActive(true);
-                    nebulaTabHighlight.enabled = true;
-                }
-                else if (copiedIndex == 2)
-                {
-                    presetSettings.gameObject.SetActive(true);
-                    presetTabHighlight.enabled = true;
-                }
-            }));
-        }
-
-
-        var killCoolOption = __instance.Children.FirstOrDefault(x => x.name == "KillCooldown")?.TryCast<NumberOption>();
+        // Nebula/Preset settingsの初期化はGameSettingMenuInitializePatchで行われる
+        // ここではゲームオプションの有効範囲のみを設定する
+        var killCoolOption = __instance.Children.ToArray().FirstOrDefault(x => x.name == "KillCooldown")?.TryCast<NumberOption>();
         if (killCoolOption != null) killCoolOption.ValidRange = new FloatRange(2.5f, 60f);
 
-        var commonTasksOption = __instance.Children.FirstOrDefault(x => x.name == "NumCommonTasks")?.TryCast<NumberOption>();
+        var commonTasksOption = __instance.Children.ToArray().FirstOrDefault(x => x.name == "NumCommonTasks")?.TryCast<NumberOption>();
         if (commonTasksOption != null) commonTasksOption.ValidRange = new FloatRange(0f, 4f);
 
-        var shortTasksOption = __instance.Children.FirstOrDefault(x => x.name == "NumShortTasks")?.TryCast<NumberOption>();
+        var shortTasksOption = __instance.Children.ToArray().FirstOrDefault(x => x.name == "NumShortTasks")?.TryCast<NumberOption>();
         if (shortTasksOption != null) shortTasksOption.ValidRange = new FloatRange(0f, 23f);
 
-        var longTasksOption = __instance.Children.FirstOrDefault(x => x.name == "NumLongTasks")?.TryCast<NumberOption>();
+        var longTasksOption = __instance.Children.ToArray().FirstOrDefault(x => x.name == "NumLongTasks")?.TryCast<NumberOption>();
         if (longTasksOption != null) longTasksOption.ValidRange = new FloatRange(0f, 15f);
 
-        var impostorsOption = __instance.Children.FirstOrDefault(x => x.name == "NumImpostors")?.TryCast<NumberOption>();
+        var impostorsOption = __instance.Children.ToArray().FirstOrDefault(x => x.name == "NumImpostors")?.TryCast<NumberOption>();
         if (impostorsOption != null) impostorsOption.ValidRange = new FloatRange(0f, 5f);
-
     }
+
 }
 
 /*
@@ -1265,6 +1329,7 @@ public class KeyValueOptionEnablePatch
 }
 */
 
+/*
 [HarmonyPatch(typeof(StringOption), nameof(StringOption.OnEnable))]
 public class StringOptionEnablePatch
 {
@@ -1280,6 +1345,7 @@ public class StringOptionEnablePatch
         return true;
     }
 }
+*/
 
 [HarmonyPatch(typeof(PlayerControl), nameof(PlayerControl.RpcSyncSettings))]
 public class RpcSyncSettingsPatch
@@ -1311,6 +1377,7 @@ public class PlayerJoinedPatch
 
 
 [HarmonyPatch(typeof(GameOptionsMenu), nameof(GameOptionsMenu.Update))]
+[HarmonyPatch(typeof(GameOptionsMenu), nameof(GameOptionsMenu.Update))]
 class GameOptionsMenuUpdatePatch
 {
     private static float timer = 1f;
@@ -1321,36 +1388,14 @@ class GameOptionsMenuUpdatePatch
         timer = 0f;
 
         float offset = 2.75f;
-
-
         var setting = __instance.transform.parent.parent;
-        if (GameOptionsMenuStartPatch.presetSettings && setting == GameOptionsMenuStartPatch.presetSettings.transform)
+        if (setting == null) return;
+
+        foreach (OptionBehaviour option in __instance.Children.ToArray())
         {
-            offset = 2f;
-
-            var saveButton = CustomOptionPreset.SaveButton;
-
-            saveButton.gameObject.SetActive(true);
-            saveButton.transform.localPosition = new Vector3(saveButton.transform.localPosition.x, offset, saveButton.transform.localPosition.z);
-
-            offset -= 0.75f;
-
-
-            foreach (var preset in CustomOptionPreset.Presets)
-            {
-                preset.Option.gameObject.SetActive(true);
-                preset.Option.transform.localPosition = new Vector3(preset.Option.transform.localPosition.x, offset, preset.Option.transform.localPosition.z);
-
-                offset -= 0.5f;
-
-            }
+            if (!option.gameObject.activeSelf) continue;
+            offset -= option.GetComponent<RectTransform>()?.rect.height ?? 0.5f;
         }
-        else
-        {
-            return;
-        }
-
-        __instance.GetComponentInParent<Scroller>().ContentYBounds.max = (-offset) - 1.5f;
     }
 }
 
@@ -1546,7 +1591,8 @@ public class GameOptionsDataPatch
 
         int numPages = pages.Count;
         int counter = CustomOptionHolder.optionsPage = CustomOptionHolder.optionsPage % numPages;
-        FastDestroyableSingleton<HudManager>.Instance.GameSettings.text = pages[counter].Trim('\r', '\n') + "\n\n" + Language.Language.GetString("option.display.pressTabForMore") + $" ({counter + 1}/{numPages})";
+        // HudManager.GameSettings was removed in newer Among Us versions
+        // FastDestroyableSingleton<HudManager>.Instance.GameSettings.text = pages[counter].Trim('\r', '\n') + "\n\n" + Language.Language.GetString("option.display.pressTabForMore") + $" ({counter + 1}/{numPages})";
     }
 }
 
@@ -1615,6 +1661,8 @@ public static class GameOptionsNextPagePatch
 }
 
 
+// GameSettingsScalePatch disabled: HudManager.GameSettings was removed in newer Among Us versions
+/*
 [HarmonyPatch(typeof(HudManager), nameof(HudManager.Update))]
 public class GameSettingsScalePatch
 {
@@ -1623,6 +1671,7 @@ public class GameSettingsScalePatch
         if (LobbyBehaviour.Instance) if (__instance.GameSettings != null) __instance.GameSettings.fontSize = 1.2f;
     }
 }
+*/
 
 /*
 [HarmonyPatch(typeof(CreateOptionsPicker), nameof(CreateOptionsPicker.Start))]

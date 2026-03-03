@@ -395,7 +395,7 @@ public static class Helpers
         return GetModData(player.PlayerId);
     }
 
-    public static Game.PlayerData? GetModData(this GameData.PlayerInfo player)
+    public static Game.PlayerData? GetModData(this NetworkedPlayerInfo player)
     {
         return GetModData(player.PlayerId);
     }
@@ -786,19 +786,19 @@ public static class Helpers
         if (target != PlayerControl.LocalPlayer) PlayerControl.LocalPlayer.NetTransform.Halt();
     }
 
-    public static void SetLocalTask(this GameData.PlayerInfo player, List<GameData.TaskInfo> taskList)
+    public static void SetLocalTask(this NetworkedPlayerInfo player, List<NetworkedPlayerInfo.TaskInfo> taskList)
     {
-        var tasks = new Il2CppSystem.Collections.Generic.List<GameData.TaskInfo>(taskList.Count);
+        var tasks = new Il2CppSystem.Collections.Generic.List<NetworkedPlayerInfo.TaskInfo>(taskList.Count);
         foreach (var t in taskList) tasks.Add(t);
 
 
         player.Tasks = tasks;
         player.Object.SetTasks(player.Tasks);
 
-        GameData.Instance.SetDirtyBit(1U << (int)player.PlayerId);
+        GameManager.Instance.SetDirtyBit(1U << (int)player.PlayerId);
     }
 
-    public static List<GameData.TaskInfo> GetRandomTaskList(int newTasks, double longTaskChance)
+    public static List<NetworkedPlayerInfo.TaskInfo> GetRandomTaskList(int newTasks, double longTaskChance)
     {
         int shortTasks = 0, longTasks = 0;
         int sum = 0;
@@ -831,11 +831,11 @@ public static class Helpers
         Extensions.Shuffle<NormalPlayerTask>(unused.Cast<Il2CppSystem.Collections.Generic.IList<NormalPlayerTask>>(), 0);
         ShipStatus.Instance.AddTasksFromList(ref num, shortTasks, tasks, usedTypes, unused);
 
-        var result = new List<GameData.TaskInfo>();
+        var result = new List<NetworkedPlayerInfo.TaskInfo>();
         uint n = 0;
         foreach (var t in tasks)
         {
-            result.Add(new GameData.TaskInfo(t, n));
+            result.Add(new NetworkedPlayerInfo.TaskInfo(t, n));
             n++;
         }
         return result;
@@ -923,7 +923,7 @@ public static class Helpers
 
     public static PoolablePlayer CopyToPoolablePlayer(this PlayerControl p)
     {
-        GameData.PlayerInfo data = p.Data;
+        NetworkedPlayerInfo data = p.Data;
         PoolablePlayer player = UnityEngine.Object.Instantiate<PoolablePlayer>(Patches.IntroCutsceneOnDestroyPatch.PlayerPrefab, HudManager.Instance.transform);
 
         player.cosmetics.ResetCosmetics();

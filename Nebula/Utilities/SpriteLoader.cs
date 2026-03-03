@@ -136,7 +136,7 @@ public class SpriteLoader : ISpriteLoader
     {
         this.sprite = sprite;
     }
-
+    
     public Sprite GetSprite()
     {
         if (!sprite)
@@ -145,6 +145,9 @@ public class SpriteLoader : ISpriteLoader
                 sprite = textureAsset.staticSprite;
             else if(address!=null)
                 sprite = Helpers.loadSpriteFromResources(address, pixelsPerUnit);
+
+            if (sprite == null)
+                NebulaPlugin.Instance.Logger.Print($"Failed to load sprite from address: {address}, textureId: {textureId}");
         }
         return sprite;
     }
@@ -174,6 +177,8 @@ public class DividedSpriteLoader : ISpriteLoader
     {
         if (!texture) {
             texture = Helpers.loadTextureFromResources(address);
+            if (texture == null)
+                NebulaPlugin.Instance.Logger.Print($"Failed to load texture from address: {address}");
             sizeX = texture.width / x;
             sizeY = texture.height / y;
         }
@@ -182,9 +187,11 @@ public class DividedSpriteLoader : ISpriteLoader
             int _x = index % x;
             int _y = index / x;
             sprites[index] = Helpers.loadSpriteFromResources(texture, pixelsPerUnit, new Rect(_x * sizeX, -_y * sizeY, sizeX, sizeY));
+            if (sprites[index] == null)
+                NebulaPlugin.Instance.Logger.Print($"Failed to create sprite at index {index} from {address}");
         }
         return sprites[index];
     }
-
+    
     public Sprite GetSprite() => GetSprite(0);
 }
